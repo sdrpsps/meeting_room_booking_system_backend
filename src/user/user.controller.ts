@@ -13,6 +13,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { LoginUserDto } from './dto/loginUser.dto';
 import { RegisterUserDto } from './dto/registerUser.dto';
 import { UserService } from './user.service';
+import { RequireLogin } from 'src/custom.decorator';
 
 @Controller('user')
 export class UserController {
@@ -57,6 +58,7 @@ export class UserController {
   }
 
   @Get('refresh')
+  @RequireLogin()
   async refreshUserToken(@Query('refreshToken') refreshToken: string) {
     try {
       const data = this.jwtService.verify(refreshToken);
@@ -69,6 +71,7 @@ export class UserController {
   }
 
   @Get('admin/refresh')
+  @RequireLogin()
   async refreshAdminToken(@Query('refreshToken') refreshToken: string) {
     try {
       const data = this.jwtService.verify(refreshToken);

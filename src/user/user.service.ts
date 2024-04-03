@@ -95,15 +95,13 @@ export class UserService {
   }
 
   async findUserById(id: number, isAdmin: boolean) {
-    const user = await this.userRepository.findOne({
+    return await this.userRepository.findOne({
       where: {
         id,
         isAdmin,
       },
       relations: ['roles', 'roles.permissions'],
     });
-
-    return this.generateUserInfo(user);
   }
 
   generatePermission(role: Role[]) {
@@ -117,11 +115,13 @@ export class UserService {
     }, []);
   }
 
-  generateToken(user: Pick<User, 'id' | 'username'>) {
+  generateToken(user: User) {
     const accessToken = this.jwtService.sign(
       {
         userId: user.id,
         username: user.username,
+        roles: user.roles.map((item) => item.name),
+        permissions: this.generatePermission(user.roles),
       },
       {
         expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRES_TIME'),
@@ -129,7 +129,7 @@ export class UserService {
     );
 
     const refreshToken = this.jwtService.sign(
-      { userId: user.id },
+      { userId: user.id, username: user.username },
       { expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRES_TIME') },
     );
 
