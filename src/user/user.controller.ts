@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
-import { UserService } from './user.service';
-import { RegisterUserDto } from './dto/registerUser.dto';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Post,
+  Query,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { EmailService } from 'src/email/email.service';
 import { RedisService } from 'src/redis/redis.service';
+import { LoginUserDto } from './dto/loginUser.dto';
+import { RegisterUserDto } from './dto/registerUser.dto';
+import { UserService } from './user.service';
 
 @Controller('user')
 export class UserController {
@@ -13,6 +23,9 @@ export class UserController {
 
   @Inject(RedisService)
   private redisService: RedisService;
+
+  @Inject(JwtService)
+  private jwtService: JwtService;
 
   @Get('register-captcha')
   async registerCaptcha(@Query('address') address: string) {
@@ -31,5 +44,39 @@ export class UserController {
   @Post('register')
   register(@Body() registerUser: RegisterUserDto) {
     return this.userService.register(registerUser);
+  }
+
+  @Post('login')
+  async userLogin(@Body() loginUser: LoginUserDto) {
+    return await this.userService.login(loginUser, false);
+  }
+
+  @Post('admin/login')
+  async adminLogin(@Body() loginUser: LoginUserDto) {
+    return await this.userService.login(loginUser, true);
+  }
+
+  @Get('refresh')
+  async refreshUserToken(@Query('refreshToken') refreshToken: string) {
+    try {
+      const data = this.jwtService.verify(refreshToken);
+      const user = await this.userService.findUserById(data.userId, false);
+
+      return this.userService.generateToken(user);
+    } catch (error) {
+      throw new UnauthorizedException('token 失效，请重新登录');
+    }
+  }
+
+  @Get('admin/refresh')
+  async refreshAdminToken(@Query('refreshToken') refreshToken: string) {
+    try {
+      const data = this.jwtService.verify(refreshToken);
+      const user = await this.userService.findUserById(data.userId, true);
+
+      return this.userService.generateToken(user);
+    } catch (error) {
+      throw new UnauthorizedException('token 失效，请重新登录');
+    }
   }
 }
