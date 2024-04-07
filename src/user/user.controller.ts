@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RequireLogin, UserInfo } from 'src/custom.decorator';
-import { LoginUserDto } from './dto/loginUser.dto';
-import { RegisterUserDto } from './dto/registerUser.dto';
+import { LoginUserDto } from './dto/login-user.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserService } from './user.service';

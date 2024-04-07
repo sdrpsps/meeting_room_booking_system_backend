@@ -8,19 +8,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EmailService } from 'src/email/email.service';
 import { RedisService } from 'src/redis/redis.service';
 import { md5 } from 'src/utils/md5';
 import { Repository } from 'typeorm';
-import { LoginUserDto } from './dto/loginUser.dto';
-import { RegisterUserDto } from './dto/registerUser.dto';
+import { LoginUserDto } from './dto/login-user.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Permission } from './entities/permission.entity';
 import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
-import { LoginUserVo } from './vo/loginUser.vo';
-import { UserInfoVo } from './vo/userInfo.vo';
-import { EmailService } from 'src/email/email.service';
+import { LoginUserVo } from './vo/login-user.vo';
+import { UserInfoVo } from './vo/user-info.vo';
 
 @Injectable()
 export class UserService {
