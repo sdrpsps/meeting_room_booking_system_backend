@@ -11,7 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EmailService } from 'src/email/email.service';
 import { RedisService } from 'src/redis/redis.service';
 import { md5 } from 'src/utils/md5';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
@@ -257,5 +257,49 @@ export class UserService {
       this.logger.error(error, UserService);
       return '修改信息失败';
     }
+  }
+
+  // 冻结用户
+  async freezeUserById(userId: number) {
+    const user = await this.userRepository.findOneBy({ id: userId });
+
+    user.isFrozen = true;
+
+    await this.userRepository.save(user);
+  }
+
+  // 用户列表
+  async findUsersByPage(
+    pageNo: number,
+    pageSize: number,
+    username: string,
+    nickName: string,
+    email: string,
+  ) {
+    const skipCount = (pageNo - 1) * pageSize;
+
+    const condition: Record<string, any> = {};
+
+    if (username) condition.username = Like(`%${username}%`);
+    if (nickName) condition.nickName = Like(`%${nickName}%`);
+    if (email) condition.email = Like(`%${email}%`);
+
+    const [users, totalCount] = await this.userRepository.findAndCount({
+      skip: skipCount,
+      take: pageSize,
+      select: [
+        'id',
+        'username',
+        'nickName',
+        'email',
+        'phoneNumber',
+        'isFrozen',
+        'avatar',
+        'createTime',
+      ],
+      where: condition,
+    });
+
+    return { users, totalCount };
   }
 }

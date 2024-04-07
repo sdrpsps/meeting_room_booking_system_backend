@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   Inject,
   Post,
@@ -9,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RequireLogin, UserInfo } from 'src/custom.decorator';
+import { generateParseIntPipe } from 'src/utils/generateParseIntPipe';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
@@ -117,5 +119,39 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return await this.userService.updateUser(userId, updateUserDto);
+  }
+
+  // 冻结用户
+  @Get('freeze')
+  @RequireLogin()
+  async freezeUser(@Query('id') userId: number) {
+    await this.userService.freezeUserById(userId);
+
+    return '冻结成功';
+  }
+
+  // 用户列表
+  @Get('list')
+  @RequireLogin()
+  async userList(
+    @Query('pageNo', new DefaultValuePipe(1), generateParseIntPipe('pageNo'))
+    pageNo: number,
+    @Query(
+      'pageSize',
+      new DefaultValuePipe(2),
+      generateParseIntPipe('pageSize'),
+    )
+    pageSize: number,
+    @Query('username') username: string,
+    @Query('nickName') nickName: string,
+    @Query('email') email: string,
+  ) {
+    return await this.userService.findUsersByPage(
+      pageNo,
+      pageSize,
+      username,
+      nickName,
+      email,
+    );
   }
 }
