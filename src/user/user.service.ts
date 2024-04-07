@@ -5,19 +5,22 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RedisService } from 'src/redis/redis.service';
 import { md5 } from 'src/utils/md5';
 import { Repository } from 'typeorm';
 import { LoginUserDto } from './dto/loginUser.dto';
 import { RegisterUserDto } from './dto/registerUser.dto';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { Permission } from './entities/permission.entity';
 import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
 import { LoginUserVo } from './vo/loginUser.vo';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { UserInfoVo } from './vo/userInfo.vo';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class UserService {
@@ -32,6 +35,9 @@ export class UserService {
   @Inject(JwtService)
   private jwtService: JwtService;
 
+  @Inject(EmailService)
+  private emailService: EmailService;
+
   @InjectRepository(User)
   private userRepository: Repository<User>;
 
@@ -41,8 +47,27 @@ export class UserService {
   @InjectRepository(Permission)
   private permissionRepository: Repository<Permission>;
 
+  // 生成验证码
+  async generateCaptcha(address: string, type: string) {
+    const code = Math.random().toString().slice(2, 8);
+    await this.redisService.set(`${type}_captcha_${address}`, code, 5 * 60);
+    return code;
+  }
+
+  // 发送邮件
+  async sendMail(address: string, code: string, type: string) {
+    await this.emailService.sendMail({
+      to: address,
+      subject: `${type}验证码`,
+      html: `<p>你的${type}验证码是 ${code}</p>`,
+    });
+  }
+
+  // 注册
   async register(user: RegisterUserDto) {
-    const captcha = await this.redisService.get(`captcha_${user.email}`);
+    const captcha = await this.redisService.get(
+      `register_captcha_${user.email}`,
+    );
 
     if (!captcha) {
       throw new HttpException('验证码已过期', HttpStatus.BAD_REQUEST);
@@ -75,6 +100,7 @@ export class UserService {
     }
   }
 
+  // 登录
   async login(loginUser: LoginUserDto, isAdmin: boolean) {
     const user = await this.userRepository.findOne({
       where: {
@@ -163,8 +189,8 @@ export class UserService {
     return vo;
   }
 
-  async findUserDetailById(id: number) {
-    const user = await this.userRepository.findOneBy({ id });
+  async findUserDetailById(userId: number) {
+    const user = await this.userRepository.findOneBy({ id: userId });
     const vo = new UserInfoVo();
     vo.id = user.id;
     vo.email = user.email;
@@ -176,5 +202,60 @@ export class UserService {
     vo.isFrozen = user.isFrozen;
 
     return vo;
+  }
+
+  // 修改密码
+  async updatePassword(userId: number, dto: UpdateUserPasswordDto) {
+    const captcha = await this.redisService.get(
+      `update_password_captcha_${dto.email}`,
+    );
+
+    if (!captcha) {
+      throw new HttpException('验证码已过期', HttpStatus.BAD_REQUEST);
+    }
+
+    if (dto.captcha !== captcha) {
+      throw new HttpException('验证码错误', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.userRepository.findOneBy({ id: userId });
+
+    user.password = md5(dto.password);
+
+    try {
+      this.userRepository.save(user);
+      return '修改密码成功';
+    } catch (error) {
+      this.logger.error(error, UserService);
+      return '修改密码失败';
+    }
+  }
+
+  // 修改信息
+  async updateUser(userId: number, dto: UpdateUserDto) {
+    const captcha = await this.redisService.get(
+      `update_user_captcha_${dto.email}`,
+    );
+
+    if (!captcha) {
+      throw new HttpException('验证码已过期', HttpStatus.BAD_REQUEST);
+    }
+
+    if (dto.captcha !== captcha) {
+      throw new HttpException('验证码错误', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.userRepository.findOneBy({ id: userId });
+
+    if (dto.nickName) user.nickName = dto.nickName;
+    if (dto.avatar) user.avatar = dto.avatar;
+
+    try {
+      this.userRepository.save(user);
+      return '修改信息成功';
+    } catch (error) {
+      this.logger.error(error, UserService);
+      return '修改信息失败';
+    }
   }
 }

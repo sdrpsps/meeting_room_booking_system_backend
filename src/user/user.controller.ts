@@ -8,36 +8,24 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { EmailService } from 'src/email/email.service';
-import { RedisService } from 'src/redis/redis.service';
+import { RequireLogin, UserInfo } from 'src/custom.decorator';
 import { LoginUserDto } from './dto/loginUser.dto';
 import { RegisterUserDto } from './dto/registerUser.dto';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UserService } from './user.service';
-import { RequireLogin, UserInfo } from 'src/custom.decorator';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-
-  @Inject(EmailService)
-  private emailService: EmailService;
-
-  @Inject(RedisService)
-  private redisService: RedisService;
 
   @Inject(JwtService)
   private jwtService: JwtService;
 
   @Get('register-captcha')
   async registerCaptcha(@Query('address') address: string) {
-    const code = Math.random().toString().slice(2, 8);
-
-    await this.redisService.set(`captcha_${address}`, code, 5 * 60);
-    await this.emailService.sendMail({
-      to: address,
-      subject: '注册验证码',
-      html: `<p>你的注册验证码是 ${code}</p>`,
-    });
+    const code = await this.userService.generateCaptcha(address, 'register');
+    await this.userService.sendMail(address, code, '注册');
 
     return '发送成功';
   }
@@ -84,7 +72,50 @@ export class UserController {
   // 查询当前用户信息
   @Get('info')
   @RequireLogin()
-  async info(@UserInfo('userId') userId) {
+  async info(@UserInfo('userId') userId: number) {
     return await this.userService.findUserDetailById(userId);
+  }
+
+  // 获取修改密码验证码
+  @Get('update_password/captcha')
+  @RequireLogin()
+  async updatePasswordCaptcha(@Query('address') address: string) {
+    const code = await this.userService.generateCaptcha(
+      address,
+      'update_password',
+    );
+    await this.userService.sendMail(address, code, '修改密码');
+
+    return '发送成功';
+  }
+
+  // 修改密码
+  @Post(['update_password', 'admin/update_password'])
+  @RequireLogin()
+  async updatePassword(
+    @UserInfo('userId') userId: number,
+    @Body() updateUserPasswordDto: UpdateUserPasswordDto,
+  ) {
+    return await this.userService.updatePassword(userId, updateUserPasswordDto);
+  }
+
+  // 获取修改信息验证码
+  @Get('update/captcha')
+  @RequireLogin()
+  async updateUserCaptcha(@Query('address') address: string) {
+    const code = await this.userService.generateCaptcha(address, 'update');
+    await this.userService.sendMail(address, code, '修改信息');
+
+    return '发送成功';
+  }
+
+  // 修改信息
+  @Post(['update', 'admin/update'])
+  @RequireLogin()
+  async updateUser(
+    @UserInfo('userId') userId: number,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return await this.userService.updateUser(userId, updateUserDto);
   }
 }
