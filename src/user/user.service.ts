@@ -17,6 +17,7 @@ import { User } from './entities/user.entity';
 import { LoginUserVo } from './vo/loginUser.vo';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { UserInfoVo } from './vo/userInfo.vo';
 
 @Injectable()
 export class UserService {
@@ -158,6 +159,21 @@ export class UserService {
     vo.userInfo = this.generateUserInfo(user);
     vo.accessToken = accessToken;
     vo.refreshToken = refreshToken;
+
+    return vo;
+  }
+
+  async findUserDetailById(id: number) {
+    const user = await this.userRepository.findOneBy({ id });
+    const vo = new UserInfoVo();
+    vo.id = user.id;
+    vo.email = user.email;
+    vo.username = user.username;
+    vo.avatar = user.avatar;
+    vo.phoneNumber = user.phoneNumber;
+    vo.nickName = user.nickName;
+    vo.createTime = user.createTime;
+    vo.isFrozen = user.isFrozen;
 
     return vo;
   }

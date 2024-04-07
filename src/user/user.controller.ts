@@ -13,7 +13,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { LoginUserDto } from './dto/loginUser.dto';
 import { RegisterUserDto } from './dto/registerUser.dto';
 import { UserService } from './user.service';
-import { RequireLogin } from 'src/custom.decorator';
+import { RequireLogin, UserInfo } from 'src/custom.decorator';
 
 @Controller('user')
 export class UserController {
@@ -58,7 +58,6 @@ export class UserController {
   }
 
   @Get('refresh')
-  @RequireLogin()
   async refreshUserToken(@Query('refreshToken') refreshToken: string) {
     try {
       const data = this.jwtService.verify(refreshToken);
@@ -71,7 +70,6 @@ export class UserController {
   }
 
   @Get('admin/refresh')
-  @RequireLogin()
   async refreshAdminToken(@Query('refreshToken') refreshToken: string) {
     try {
       const data = this.jwtService.verify(refreshToken);
@@ -81,5 +79,12 @@ export class UserController {
     } catch (error) {
       throw new UnauthorizedException('token 失效，请重新登录');
     }
+  }
+
+  // 查询当前用户信息
+  @Get('info')
+  @RequireLogin()
+  async info(@UserInfo('userId') userId) {
+    return await this.userService.findUserDetailById(userId);
   }
 }
